@@ -1,4 +1,3 @@
-// We brought `Rad` back in so we can do the conversion!
 use cgmath::{Matrix4, Point3, Vector3, perspective, Deg, Rad, SquareMatrix}; 
 
 pub struct CameraConfig {

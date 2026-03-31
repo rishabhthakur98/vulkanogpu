@@ -12,7 +12,7 @@ use vulkano::pipeline::graphics::GraphicsPipelineCreateInfo;
 use vulkano::pipeline::layout::PipelineLayoutCreateInfo;
 use vulkano::pipeline::{GraphicsPipeline, PipelineLayout, PipelineShaderStageCreateInfo, Pipeline};
 use vulkano::pipeline::graphics::input_assembly::InputAssemblyState;
-use vulkano::pipeline::graphics::rasterization::{RasterizationState, CullMode, FrontFace};
+use vulkano::pipeline::graphics::rasterization::{RasterizationState, FrontFace};
 use vulkano::pipeline::graphics::multisample::MultisampleState;
 use vulkano::pipeline::graphics::color_blend::{ColorBlendState, ColorBlendAttachmentState};
 use vulkano::render_pass::{Framebuffer, FramebufferCreateInfo, Subpass};
@@ -26,14 +26,13 @@ use winit::window::Window;
 
 use crate::vertex::MyVertex;
 use crate::mesh::MeshData;
+use crate::renderer_config::RendererConfig;
 
-// --- DEFINE THE PUSH CONSTANT STRUCT ---
 #[repr(C)]
 #[derive(BufferContents, Clone, Copy)]
 pub struct CameraPushConstant {
     pub mvp: [[f32; 4]; 4],
 }
-// ---------------------------------------
 
 pub struct VulkanRenderer {
     queue: Arc<Queue>,
@@ -44,10 +43,12 @@ pub struct VulkanRenderer {
     index_buffer: Subbuffer<[u32]>,
     index_count: u32,
     command_buffer_allocator: Arc<StandardCommandBufferAllocator>,
+    clear_color: [f32; 4], // Added this to store our background color
 }
 
 impl VulkanRenderer {
-    pub fn new(event_loop: &EventLoop<()>, window: Arc<Window>, mesh_data: MeshData, cull_mode: CullMode) -> Self {
+    // Note we replaced `cull_mode` with `config`
+    pub fn new(event_loop: &EventLoop<()>, window: Arc<Window>, mesh_data: MeshData, config: RendererConfig) -> Self {
         let library = VulkanLibrary::new().unwrap();
         let instance = Instance::new(library, InstanceCreateInfo {
             enabled_extensions: Surface::required_extensions(event_loop),
@@ -101,10 +102,9 @@ impl VulkanRenderer {
             mesh_data.indices,
         ).unwrap();
 
-        let vs_code = include_bytes!("../vert.spv");
-        let fs_code = include_bytes!("../frag.spv");
-        let vs_words = vulkano::shader::spirv::bytes_to_words(vs_code).unwrap();
-        let fs_words = vulkano::shader::spirv::bytes_to_words(fs_code).unwrap();
+        // Used config here instead of include_bytes!
+        let vs_words = vulkano::shader::spirv::bytes_to_words(config.vertex_shader_bytes).unwrap();
+        let fs_words = vulkano::shader::spirv::bytes_to_words(config.fragment_shader_bytes).unwrap();
         let vs = unsafe { ShaderModule::new(device.clone(), ShaderModuleCreateInfo::new(&vs_words)).unwrap() };
         let fs = unsafe { ShaderModule::new(device.clone(), ShaderModuleCreateInfo::new(&fs_words)).unwrap() };
 
@@ -114,8 +114,6 @@ impl VulkanRenderer {
         ).unwrap();
 
         let subpass = Subpass::from(render_pass.clone(), 0).unwrap();
-
-        // FIX: Removed .cloned() entirely. Just into_iter().collect()
         let push_constant_ranges = vs.entry_point("main").unwrap().info().push_constant_requirements.into_iter().collect();
 
         let pipeline = GraphicsPipeline::new(device.clone(), None, GraphicsPipelineCreateInfo {
@@ -126,11 +124,12 @@ impl VulkanRenderer {
             vertex_input_state: Some(MyVertex::per_vertex().definition(&vs.entry_point("main").unwrap().info().input_interface).unwrap()),
             input_assembly_state: Some(InputAssemblyState::default()),
             viewport_state: Some(ViewportState { 
-                viewports: [Viewport { offset: [0.0, 0.0], extent: [1366.0, 768.0], depth_range: 0.0..=1.0 }].into_iter().collect(), 
+                // Used config for dimensions
+                viewports: [Viewport { offset: [0.0, 0.0], extent: [config.viewport_width, config.viewport_height], depth_range: 0.0..=1.0 }].into_iter().collect(), 
                 ..Default::default() 
             }),
             rasterization_state: Some(RasterizationState {
-                cull_mode,
+                cull_mode: config.cull_mode, // Used config for culling
                 front_face: FrontFace::CounterClockwise, 
                 ..Default::default()
             }),
@@ -155,7 +154,17 @@ impl VulkanRenderer {
 
         let command_buffer_allocator = Arc::new(StandardCommandBufferAllocator::new(device.clone(), Default::default()));
 
-        Self { queue, swapchain, framebuffers, pipeline, vertex_buffer, index_buffer, index_count, command_buffer_allocator }
+        Self { 
+            queue, 
+            swapchain, 
+            framebuffers, 
+            pipeline, 
+            vertex_buffer, 
+            index_buffer, 
+            index_count, 
+            command_buffer_allocator,
+            clear_color: config.clear_color // Save the clear color
+        }
     }
 
     pub fn draw(&mut self, mvp_matrix: [[f32; 4]; 4]) {
@@ -165,7 +174,8 @@ impl VulkanRenderer {
         let push_constant = CameraPushConstant { mvp: mvp_matrix };
 
         builder.begin_render_pass(RenderPassBeginInfo { 
-            clear_values: vec![Some([0.1, 0.1, 0.1, 1.0].into())], 
+            // Use the clear color from our stored config!
+            clear_values: vec![Some(self.clear_color.into())], 
             ..RenderPassBeginInfo::framebuffer(self.framebuffers[img_idx as usize].clone())
         }, SubpassBeginInfo::default()).unwrap()
         .bind_pipeline_graphics(self.pipeline.clone()).unwrap()
