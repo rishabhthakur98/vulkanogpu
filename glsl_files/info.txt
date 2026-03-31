@@ -1,0 +1,2 @@
+glslang -V -S vert vert.glsl -o vert.spv
+glslang -V -S frag frag.glsl -o frag.spv

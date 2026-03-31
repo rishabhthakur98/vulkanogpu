@@ -13,9 +13,7 @@ pub struct InputState {
 
 impl InputState {
     pub fn process_keyboard(&mut self, keycode: VirtualKeyCode, state: ElementState) {
-        // Is the key being pressed down, or was it just released?
         let pressed = state == ElementState::Pressed;
-        
         match keycode {
             VirtualKeyCode::W => self.move_forward = pressed,
             VirtualKeyCode::S => self.move_backward = pressed,
@@ -27,13 +25,11 @@ impl InputState {
     }
 
     pub fn process_mouse(&mut self, dx: f64, dy: f64) {
-        // Accumulate mouse movement until the camera processes it
         self.mouse_dx += dx;
         self.mouse_dy += dy;
     }
 
     pub fn reset_mouse(&mut self) {
-        // Clear the mouse movement after the camera uses it
         self.mouse_dx = 0.0;
         self.mouse_dy = 0.0;
     }

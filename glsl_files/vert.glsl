@@ -1,12 +1,15 @@
 #version 450
 layout(location = 0) in vec3 position;
 
-// This receives our camera matrix from Rust
+// Pass the position to the fragment shader for fake lighting
+layout(location = 0) out vec3 frag_pos; 
+
 layout(push_constant) uniform PushConstants {
     mat4 mvp;
+    vec4 color; // NEW: The Material Color!
 } pc;
 
 void main() {
-    // Multiply the matrix by the position to simulate 3D camera movement
+    frag_pos = position;
     gl_Position = pc.mvp * vec4(position, 1.0);
 }

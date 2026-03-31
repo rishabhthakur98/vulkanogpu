@@ -6,21 +6,26 @@ pub struct MeshData {
 }
 
 impl MeshData {
-    pub fn create_scene() -> Self {
-        // 1. DEFINE YOUR UNIQUE POINTS IN SPACE [X, Y, Z]
+    pub fn create_cube() -> Self {
         let vertices = vec![
-            MyVertex::new(-0.5,  0.5, 0.0), // 0: Bottom Left
-            MyVertex::new( 0.5,  0.5, 0.0), // 1: Bottom Right
-            MyVertex::new( 0.0, -0.5, 0.0), // 2: Top Center
-            MyVertex::new( 1.5, -0.5, 0.0), // 3: Top Right (Far away)
-            MyVertex::new( 1.0,  0.5, 0.0), // 4: Bottom Right (Far away)
+            MyVertex::new(-0.5, -0.5,  0.5), // 0: Front Bottom Left
+            MyVertex::new( 0.5, -0.5,  0.5), // 1: Front Bottom Right
+            MyVertex::new( 0.5,  0.5,  0.5), // 2: Front Top Right
+            MyVertex::new(-0.5,  0.5,  0.5), // 3: Front Top Left
+            
+            MyVertex::new(-0.5, -0.5, -0.5), // 4: Back Bottom Left
+            MyVertex::new( 0.5, -0.5, -0.5), // 5: Back Bottom Right
+            MyVertex::new( 0.5,  0.5, -0.5), // 6: Back Top Right
+            MyVertex::new(-0.5,  0.5, -0.5), // 7: Back Top Left
         ];
 
-        // 2. GROUP THEM INTO TRIANGLES (Using their ID number from the list above)
         let indices = vec![
-            0, 1, 2, // Triangle 1: Uses Bottom Left, Bottom Right, Top Center
-            2, 1, 4, // Triangle 2: Connects the first triangle to the far bottom right
-            2, 4, 3, // Triangle 3: Connects to make a bigger shape!
+            0, 1, 2,  2, 3, 0, // Front
+            1, 5, 6,  6, 2, 1, // Right
+            7, 6, 5,  5, 4, 7, // Back
+            4, 0, 3,  3, 7, 4, // Left
+            4, 5, 1,  1, 0, 4, // Bottom
+            3, 2, 6,  6, 7, 3, // Top
         ];
 
         Self { vertices, indices }
